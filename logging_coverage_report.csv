@@ -1,7 +1,0 @@
-Resource,Logging Status,Defined In
-azurerm_storage_account.encrypted_storage,❌ Missing diagnostic_setting,./main
-azurerm_network_security_group.nsgs,❌ Missing diagnostic_setting,./dev
-azurerm_network_security_group.mgmt_nsg,❌ Missing diagnostic_setting,./firewall
-azurerm_network_security_group.public_nsg,❌ Missing diagnostic_setting,./firewall
-azurerm_network_security_group.private_nsg,❌ Missing diagnostic_setting,./firewall
-azurerm_network_security_group.dmz_nsg,❌ Missing diagnostic_setting,./firewall
