@@ -75,7 +75,7 @@ az storage blob lease break \
   --container-name terraform-state \
   --account-name acme-health-terraform-state \
   --auth-mode login \
-  --subscription ce62d93b-2e73-46e0-a3d6-6a99156e9741
+  --subscription <subscription id>
 ```
 
 ---
