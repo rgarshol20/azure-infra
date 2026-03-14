@@ -1,0 +1,229 @@
+
+# ===============================
+# Variables and Locals
+# ===============================
+variable "sg_roles" {
+  default = [
+    "public",
+    "private",
+    "dmz",
+    "ad",
+    "database",
+    "twingate",
+    "rdp",
+    "services",
+    "payers"
+  ]
+}
+
+locals {
+  desktop_roles    = ["rdp", "services", "payers"]
+  twingate_targets = [for role in var.sg_roles : role if role != "twingate"]
+}
+
+# ===============================
+# NSGs Per Role
+# ===============================
+resource "azurerm_network_security_group" "nsgs" {
+  provider            = azurerm.dev
+  for_each            = toset(var.sg_roles)
+  name                = "nsg-${each.key}"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.networking.name
+}
+
+resource "azurerm_network_security_rule" "deny_all_inbound" {
+  provider                    = azurerm.dev
+  for_each                    = toset(var.sg_roles)
+  name                        = "DenyAllInbound"
+  priority                    = 4096
+  direction                   = "Inbound"
+  access                      = "Deny"
+  protocol                    = "*"
+  source_port_range           = "*"
+  destination_port_range      = "*"
+  source_address_prefix       = "*"
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.networking.name
+  network_security_group_name = azurerm_network_security_group.nsgs[each.key].name
+}
+
+
+resource "azurerm_subnet_network_security_group_association" "nsg_associations" {
+  provider = azurerm.dev
+  for_each = toset(var.sg_roles)
+
+  subnet_id                 = azurerm_subnet.dev_subnets[each.key].id
+  network_security_group_id = azurerm_network_security_group.nsgs[each.key].id
+}
+
+
+# ===============================
+# Rules for AD (CIDR-based)
+# ===============================
+locals {
+  ad_ports = [
+    { protocol = "tcp", port = 53, description = "DNS TCP" },
+    { protocol = "udp", port = 53, description = "DNS UDP" },
+    { protocol = "tcp", port = 88, description = "Kerberos TCP" },
+    { protocol = "udp", port = 88, description = "Kerberos UDP" },
+    { protocol = "udp", port = 123, description = "NTP" },
+    { protocol = "tcp", port = 135, description = "RPC Endpoint Mapper" },
+    { protocol = "udp", port = 137, description = "NetBIOS Name Service" },
+    { protocol = "udp", port = 138, description = "NetBIOS Datagram Service" },
+    { protocol = "tcp", port = 139, description = "NetBIOS Session Service" },
+    { protocol = "tcp", port = 389, description = "LDAP TCP" },
+    { protocol = "udp", port = 389, description = "LDAP UDP" },
+    { protocol = "tcp", port = 445, description = "SMB (CIFS)" },
+    { protocol = "tcp", port = 636, description = "LDAPS (Secure LDAP)" },
+    { protocol = "tcp", port = 3268, description = "Global Catalog" },
+    { protocol = "tcp", port = 49152, to_port = 65535, description = "Ephemeral RPC Range (49152-65535)" }
+  ]
+}
+
+resource "azurerm_network_security_rule" "ad_ingress" {
+  provider = azurerm.dev
+  for_each = {
+    for idx, port in local.ad_ports : "${port.protocol}-${port.port}" => {
+      protocol = port.protocol
+      port     = port.port
+      desc     = port.description
+      to_port  = lookup(port, "to_port", null)
+      index    = idx
+    }
+  }
+
+  name                        = "ad-${each.key}"
+  priority                    = 100 + each.value.index
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = title(each.value.protocol)
+  source_port_range           = "*"
+  source_address_prefix       = "10.50.0.0/16"
+  destination_port_range      = each.value.to_port != null ? "${each.value.port}-${each.value.to_port}" : tostring(each.value.port)
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.networking.name
+  network_security_group_name = azurerm_network_security_group.nsgs["ad"].name
+}
+
+# ===============================
+# DMZ Rules from Desktop Roles
+# ===============================
+locals {
+  desktop_to_dmz_ports = [
+    { protocol = "Tcp", port = 445, description = "SMB" },
+    { protocol = "Tcp", port = 6262, description = "App Port" },
+    { protocol = "Tcp", port = 22, description = "SFTP" },
+    { protocol = "Tcp", port = 443, description = "HTTPS" }
+  ]
+}
+resource "azurerm_network_security_rule" "desktop_to_dmz" {
+  provider = azurerm.dev
+  for_each = {
+    for rule in flatten([
+      for role in local.desktop_roles : [
+        for port in local.desktop_to_dmz_ports : {
+          key      = "${role}-dmz-${port.port}"
+          protocol = port.protocol
+          port     = port.port
+          desc     = port.description
+        }
+      ]
+    ]) : rule.key => rule
+  }
+
+  name                        = "dmz-${each.key}"
+  priority                    = 1000 + parseint(substr(md5(each.key), 0, 4), 16) % 1000 # ✅ Unique
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = each.value.protocol
+  source_port_range           = "*"
+  source_address_prefix       = "10.50.0.0/16"
+  destination_port_range      = tostring(each.value.port)
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.networking.name
+  network_security_group_name = azurerm_network_security_group.nsgs["dmz"].name
+}
+
+
+
+# ===============================
+# Desktop to Database Rules
+# ===============================
+locals {
+  desktop_to_db_ports = [
+    { protocol = "Tcp", port = 445, description = "SMB" },
+    { protocol = "Tcp", port = 6262, description = "App Port" }
+  ]
+}
+
+resource "azurerm_network_security_rule" "desktop_to_database" {
+  provider = azurerm.dev
+  for_each = {
+    for rule in flatten([
+      for role in local.desktop_roles : [
+        for port in local.desktop_to_db_ports : {
+          key      = "${role}-db-${port.port}"
+          protocol = port.protocol
+          port     = port.port
+          desc     = port.description
+        }
+      ]
+    ]) : rule.key => rule
+  }
+
+  name                        = "db-${each.key}"
+  priority                    = 500 + parseint(substr(md5(each.key), 0, 4), 16) % 1000 # ✅ Unique per rule
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = each.value.protocol
+  source_port_range           = "*"
+  source_address_prefix       = "10.50.0.0/16"
+  destination_port_range      = tostring(each.value.port)
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.networking.name
+  network_security_group_name = azurerm_network_security_group.nsgs["database"].name
+}
+
+
+
+# ===============================
+# Twingate to All Targets Rules
+# ===============================
+locals {
+  twingate_ports = [
+    { protocol = "Tcp", port = 3389, description = "RDP" },
+    { protocol = "Tcp", port = 443, description = "HTTPS" },
+    { protocol = "Tcp", port = 80, description = "HTTP" }
+  ]
+}
+
+resource "azurerm_network_security_rule" "twingate_to_all" {
+  provider = azurerm.dev
+  for_each = {
+    for rule in flatten([
+      for role in local.twingate_targets : [
+        for port in local.twingate_ports : {
+          key      = "twingate-${role}-${port.port}"
+          protocol = port.protocol
+          port     = port.port
+          desc     = port.description
+          role     = role
+        }
+      ]
+    ]) : rule.key => rule
+  }
+
+  name                        = "twg-${each.key}"
+  priority                    = 3000 + parseint(substr(md5(each.key), 0, 4), 16) % 1000 # ✅ Unique
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = each.value.protocol
+  source_port_range           = "*"
+  source_address_prefix       = "10.50.6.0/24"
+  destination_port_range      = tostring(each.value.port)
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.networking.name
+  network_security_group_name = azurerm_network_security_group.nsgs[each.value.role].name
+}
+
