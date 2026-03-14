@@ -1,0 +1,95 @@
+# resource "azurerm_public_ip" "pc_pip" {
+#   provider            = azurerm.firewall
+#   name                = "pip-ssh-demo"
+#   location            = azurerm_resource_group.firewall.location
+#   resource_group_name = azurerm_resource_group.firewall.name
+#   allocation_method   = "Static"
+#   sku                 = "Basic"
+# }
+
+resource "azurerm_network_security_group" "pc_nsg" {
+  provider = azurerm.firewall  
+  name                = "pc-nsg"
+  location            = azurerm_resource_group.firewall.location
+  resource_group_name = azurerm_resource_group.firewall.name
+
+  security_rule {
+    name                       = "AllowInternetOutbound"
+    priority                   = 100
+    direction                  = "Outbound"
+    access                     = "Allow"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "Internet"
+  }
+}
+
+resource "azurerm_network_interface" "pc_nic" {
+  provider            = azurerm.firewall
+  name                = "nic-ssh-demo"
+  location            = azurerm_resource_group.firewall.location
+  resource_group_name = azurerm_resource_group.firewall.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.private.id
+    private_ip_address_allocation = "Dynamic"
+    # public_ip_address_id          = azurerm_public_ip.pc_pip.id
+  }
+}
+
+resource "azurerm_network_interface_security_group_association" "main" {
+  provider                  = azurerm.firewall
+  network_interface_id      = azurerm_network_interface.pc_nic.id
+  network_security_group_id = azurerm_network_security_group.pc_nsg.id
+}
+
+resource "azurerm_linux_virtual_machine" "main" {
+  provider            = azurerm.firewall
+  name                = "vm-ssh-demo"
+  resource_group_name = azurerm_resource_group.firewall.name
+  location            = azurerm_resource_group.firewall.location
+  size                = "Standard_B1s"
+  admin_username      = "azureuser"
+  network_interface_ids = [
+    azurerm_network_interface.pc_nic.id,
+  ]
+
+  disable_password_authentication = true
+
+  admin_ssh_key {
+    username   = "azureuser"
+    public_key = var.public_key
+  }
+
+  os_disk {
+    caching              = "ReadWrite"
+    storage_account_type = "Standard_LRS"
+    name                 = "osdisk-ssh-demo"
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-focal"
+    sku       = "20_04-lts"
+    version   = "latest"
+  }
+
+}
+
+resource "azurerm_network_security_rule" "allow_ssh_from_cloudpc" {
+  provider = azurerm.firewall  
+  name                        = "allow-ssh-from-cloudpc"
+  priority                    = 100
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "22"
+  source_address_prefix       = "35.94.62.86/32"
+  destination_address_prefix  = "*"
+  resource_group_name = azurerm_resource_group.firewall.name
+  network_security_group_name = azurerm_network_security_group.pc_nsg.name
+}
