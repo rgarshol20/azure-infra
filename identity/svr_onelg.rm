@@ -1,0 +1,97 @@
+# Define NIC for onelgcat01
+resource "azurerm_network_interface" "nic_onelgcazp01" {
+  provider            = azurerm.identity  
+  name                = "onelgcazp01-nic"
+  location            = azurerm_resource_group.ad.location
+  resource_group_name = azurerm_resource_group.ad.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.ad.id
+    private_ip_address            = "10.10.1.12"  # Hardcoded static IP
+    private_ip_address_allocation = "Static"
+  }
+}
+
+# Define the virtual machine for onelgcat01
+resource "azurerm_windows_virtual_machine" "onelgcazp01_vm" {
+  provider            = azurerm.identity  
+  name                = "ONELGCAZP01"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.ad.name
+  size                = "Standard_B2ms"
+  admin_username      = "test-admin"
+  admin_password      = azurerm_key_vault_secret.admin_password.value
+
+  network_interface_ids = [azurerm_network_interface.nic_onelgcazp01.id]
+
+  os_disk {
+    caching                  = "ReadWrite"
+    storage_account_type     = "Premium_LRS"
+    disk_size_gb             = 200
+    disk_encryption_set_id   = azurerm_disk_encryption_set.hipaa_des.id  # ✅ Shared DES
+  }
+
+    encryption_at_host_enabled = true  # ✅ Ensure encryption at host remains enabled
+    secure_boot_enabled = false  # ✅ Required for encryption
+    vtpm_enabled        = false  # ✅ Fixes vTPM error
+    provision_vm_agent = true
+    
+    source_image_reference {
+      publisher = "MicrosoftWindowsServer"
+      offer     = "WindowsServer"
+      sku       = "2022-datacenter"              # common/default SKU
+      version   = "latest"
+    }
+
+    # Use Azure’s platform-managed patching
+    patch_mode            = "AutomaticByOS"
+    patch_assessment_mode = "AutomaticByPlatform"
+
+  identity {
+    type = "SystemAssigned"
+  }
+  
+
+  tags = {
+    environment = "identity"
+  }
+}
+
+resource "azurerm_monitor_data_collection_rule_association" "onelgcazp01_dcr_association" {
+  provider = azurerm.identity  
+  name                    = "onelgcazp01-vm-dcr-association"
+  target_resource_id      = azurerm_windows_virtual_machine.onelgcazp01_vm.id
+  data_collection_rule_id = azurerm_monitor_data_collection_rule.windows_dcr.id
+}
+
+# resource "azurerm_virtual_machine_extension" "guest_onelgcazp01_vm" {
+#   provider = azurerm.identity  
+#   name                 = "GuestConfiguration"
+#   virtual_machine_id   = azurerm_windows_virtual_machine.onelgcazp01_vm.id
+#   publisher            = "Microsoft.GuestConfiguration"
+#   type                 = "GuestConfigurationExtension"
+#   type_handler_version = "1.26"      # or the latest approved in your env
+#   auto_upgrade_minor_version = true
+#   settings             = jsonencode({})
+# }
+
+# resource "azurerm_virtual_machine_extension" "mde_onelgcazp01_vm" {
+#   provider = azurerm.identity  
+#   name                       = "MDEWindows"
+#   virtual_machine_id         = azurerm_windows_virtual_machine.onelgcazp01_vm.id
+#   publisher                  = "Microsoft.Azure.Security"
+#   type                       = "MDE.Windows"
+#   type_handler_version       = "1.0"
+#   auto_upgrade_minor_version = true
+#   settings                   = jsonencode({})
+# }
+
+# # Repeat (or for_each over a list of VM IDs) as needed.
+# resource "azurerm_backup_protected_vm" "onelgcazp01_vm" {
+#   provider = azurerm.identity  
+#   resource_group_name = azurerm_resource_group.backup.name
+#   recovery_vault_name = azurerm_recovery_services_vault.rsv.name
+#   source_vm_id        = azurerm_windows_virtual_machine.onelgcazp01_vm.id
+#   backup_policy_id    = azurerm_backup_policy_vm.daily_30d.id
+# }
