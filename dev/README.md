@@ -2,7 +2,7 @@
 
 Manages the AcmeHealth Group development environment: a MySQL/SQL application server and RDP gateway for non-production testing and validation.
 
-**Subscription:** Dev (`11781e6f-5641-4d6c-8ebd-1f9c38a8770b`)
+**Subscription:** Dev  
 **Region:** West US (`westus`)
 **Backend:** `acme-health-terraform-state` / container `terraform-state` / `dev.terraform.tfstate`
 
@@ -60,7 +60,7 @@ az storage blob lease break \
   --container-name terraform-state \
   --account-name acme-health-terraform-state \
   --auth-mode login \
-  --subscription ce62d93b-2e73-46e0-a3d6-6a99156e9741
+  --subscription <subscription id>
 ```
 
 ---
