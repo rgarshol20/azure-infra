@@ -2,7 +2,7 @@
 
 Manages the centralized security logging hub for all AcmeHealth Group subscriptions: Log Analytics workspace, EventHub ingestion pipeline, HIPAA-compliant 6-year immutable archive storage, and security alerting.
 
-**Subscription:** Logging (`3946532a-b498-4dfd-9159-c529533f977a`)
+**Subscription:** Logging 
 **Region:** West US (`westus`)
 **Backend:** `acme-health-terraform-state` / container `terraform-state` / `logging.terraform.tfstate`
 
