@@ -1,0 +1,55 @@
+# Define NIC for wrksvcat01
+resource "azurerm_network_interface" "nic_wrksvcazt01" {
+  provider            = azurerm.dev  
+  name                = "wrksvcazt01-nic"
+  location            = azurerm_resource_group.workers.location
+  resource_group_name = azurerm_resource_group.workers.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.dev_subnets["services"].id
+    private_ip_address            = "10.50.8.5"  # Hardcoded static IP
+    private_ip_address_allocation = "Static"
+  }
+}
+
+# Define the virtual machine for wrksvcat01
+resource "azurerm_windows_virtual_machine" "wrksvcazt01_vm" {
+  provider            = azurerm.dev  
+  name                = "WRKSVCAZT01"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.workers.name
+  size                = "Standard_B2ms"
+  admin_username      = "test-admin"
+  admin_password      = azurerm_key_vault_secret.admin_password.value
+
+  network_interface_ids = [azurerm_network_interface.nic_wrksvcazt01.id]
+
+  os_disk {
+    caching                  = "ReadWrite"
+    storage_account_type      = "Premium_LRS"
+    disk_size_gb             = 1024
+    disk_encryption_set_id   = azurerm_disk_encryption_set.hipaa_des.id  # ✅ Shared DES
+  }
+
+    encryption_at_host_enabled = true  # ✅ Ensure encryption at host remains enabled
+    secure_boot_enabled = false  # ✅ Required for encryption
+    vtpm_enabled        = false  # ✅ Fixes vTPM error
+    provision_vm_agent = true
+    source_image_id       = data.azurerm_image.win2022_wkr_image.id
+
+  identity {
+    type = "SystemAssigned"
+  }
+  
+  tags = {
+    environment = "test"
+  }
+}
+
+resource "azurerm_monitor_data_collection_rule_association" "wrksvcazt01_dcr_association" {
+  provider = azurerm.dev  
+  name                    = "wrksvcazt01-vm-dcr-association"
+  target_resource_id      = azurerm_windows_virtual_machine.wrksvcazt01_vm.id
+  data_collection_rule_id = azurerm_monitor_data_collection_rule.windows_dcr.id
+}
