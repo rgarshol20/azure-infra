@@ -2,7 +2,7 @@
 
 Manages enterprise governance, Entra ID, Terraform state storage, Defender for Cloud, and subscription-level security controls for the AcmeHealth Group Azure tenant.
 
-**Subscription:** Main (`11f57390-98b0-461e-962e-a0d753f2e046`)
+**Subscription:** Main 
 **Region:** West US (`westus`)
 **Backend:** `acme-health-terraform-state` / container `terraform-state` / `main.terraform.tfstate`
 
