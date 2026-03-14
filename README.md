@@ -8,13 +8,13 @@ Terraform infrastructure for AcmeHealth Group Azure environments. Seven subscrip
 
 | Directory | Subscription | Workflow |
 |---|---|---|
-| `main/` | Main (`ce62d93b`) | `deploy-main.yml` |
-| `logging/` | Logging (`3946532a`) | `deploy-logging.yml` |
-| `identity/` | Identity (`ac212528`) | `deploy-identity.yml` |
-| `firewall/` | Firewall (`28bada8b`) | `deploy-firewall.yml` |
-| `dev/` | Dev (`11781e6f`) | `deploy-dev.yml` |
-| `prod/` | Prod (`db824d94`) | `deploy-prod.yml` |
-| `dashboard/` | Dashboard (`77af0f6a`) | `deploy-dashboard.yml` |
+| `main/` | Main | `deploy-main.yml` |
+| `logging/` | Logging | `deploy-logging.yml` |
+| `identity/` | Identity | `deploy-identity.yml` |
+| `firewall/` | Firewall | `deploy-firewall.yml` |
+| `dev/` | Dev | `deploy-dev.yml` |
+| `prod/` | Prod | `deploy-prod.yml` |
+| `dashboard/` | Dashboard | `deploy-dashboard.yml` |
 | `modules/` | Shared Terraform modules | — |
 | `function_app/` | Azure Function source (PA backup/audit) | — |
 
@@ -78,7 +78,7 @@ All modules share one storage account:
 |---|---|
 | Storage account | `acme-health-terraform-state` |
 | Container | `terraform-state` |
-| Subscription | Main (`ce62d93b-2e73-46e0-a3d6-6a99156e9741`) |
+| Subscription | Main |
 
 State files: `main.terraform.tfstate`, `logging.terraform.tfstate`, `identity.terraform.tfstate`, `firewall.terraform.tfstate`, `dev.terraform.tfstate`, `prod.terraform.tfstate`, `dashboard.terraform.tfstate`.
 
@@ -89,7 +89,7 @@ az storage blob lease break \
   --container-name terraform-state \
   --account-name acme-health-terraform-state \
   --auth-mode login \
-  --subscription ce62d93b-2e73-46e0-a3d6-6a99156e9741
+  --subscription <SUBSCRIPTION_ID>
 ```
 
 ---
