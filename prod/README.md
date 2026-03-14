@@ -2,7 +2,7 @@
 
 Manages the primary production workloads for AcmeHealth Group: Windows Server VMs, Active Directory, file services, and supporting infrastructure.
 
-**Subscription:** Prod (`db824d94-d9df-44d4-9f17-f0774b2b4664`)
+**Subscription:** Prod 
 **Region:** West US (`westus`)
 **Backend:** `acme-health-terraform-state` / container `terraform-state` / `prod.terraform.tfstate`
 
@@ -77,7 +77,7 @@ az storage blob lease break \
   --container-name terraform-state \
   --account-name acme-health-terraform-state \
   --auth-mode login \
-  --subscription ce62d93b-2e73-46e0-a3d6-6a99156e9741
+  --subscription <subscription id>
 ```
 
 ---
