@@ -2,7 +2,7 @@
 
 Manages the AcmeHealth Group network security perimeter: Palo Alto VM-Series firewall, Panorama, syslog collection, Arctic Wolf threat detection, Twingate zero-trust access, and all associated networking.
 
-**Subscription:** Firewall (`28bada8b-1c94-444c-a506-1f906463aa6e`)
+**Subscription:** Firewall 
 **Region:** West US (`westus`)
 **Backend:** `acme-health-terraform-state` / container `terraform-state` / `firewall.terraform.tfstate`
 
@@ -102,7 +102,7 @@ az storage blob lease break \
   --container-name terraform-state \
   --account-name acme-health-terraform-state \
   --auth-mode login \
-  --subscription ce62d93b-2e73-46e0-a3d6-6a99156e9741
+  --subscription <subscription id>
 ```
 
 ---
