@@ -2,7 +2,7 @@
 
 Manages Active Directory domain controllers and identity infrastructure for the AcmeHealth Group on-premises/hybrid identity model.
 
-**Subscription:** Identity (`ac212528-610c-4d98-8bd8-07e0bb115e58`)
+**Subscription:** Identity 
 **Region:** West US (`westus`)
 **Backend:** `acme-health-terraform-state` / container `terraform-state` / `identity.terraform.tfstate`
 
@@ -60,7 +60,7 @@ az storage blob lease break \
   --container-name terraform-state \
   --account-name acme-health-terraform-state \
   --auth-mode login \
-  --subscription ce62d93b-2e73-46e0-a3d6-6a99156e9741
+  --subscription <subscription id>
 ```
 
 ---
